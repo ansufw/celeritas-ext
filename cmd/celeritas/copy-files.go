@@ -4,7 +4,7 @@ import (
 	"errors"
 	"os"
 
-	"github.com/ansufw/celeritas/cmd/cli/templates"
+	"github.com/ansufw/celeritas/cmd/celeritas/templates"
 )
 
 var templateFS = templates.Templates
