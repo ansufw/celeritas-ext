@@ -3,13 +3,23 @@ package main
 import (
 	"errors"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"github.com/ansufw/celeritas"
 	"github.com/fatih/color"
 )
 
-const version = "1.0.0"
+func getVersion() string {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		if info.Main.Version != "" {
+			return info.Main.Version
+		}
+	}
+	return "(devel)"
+}
+
+var version = getVersion()
 
 var cel celeritas.Celeritas
 

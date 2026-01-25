@@ -1,11 +1,22 @@
+# IDEs
 .idea
-coverage.out
-dist/
-.DS_Store
-vendor/
+.vscode
+
+# Build artifacts
 bin/
+dist/
 tmp/
 *.exe
 *.test
+celeritas
+cmd/celeritas/celeritas
+
+# Coverage
+coverage.out
+
+# Env and data
 .env
 db-data/
+logs/
+.DS_Store
+vendor/
