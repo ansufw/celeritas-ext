@@ -1,0 +1,74 @@
+package session
+
+import (
+	"database/sql"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/alexedwards/scs/mysqlstore"
+	"github.com/alexedwards/scs/postgresstore"
+	"github.com/alexedwards/scs/redisstore"
+	"github.com/alexedwards/scs/v2"
+	"github.com/gomodule/redigo/redis"
+)
+
+type Session struct {
+	CookieLifetime string
+	CookieName     string
+	CookiePersist  string
+	CookieDomain   string
+	CookieSecure   string
+	SessionType    string
+	DBPool         *sql.DB
+	RedisPool      *redis.Pool
+}
+
+func (s *Session) Init() *scs.SessionManager {
+	var persist, secure bool
+
+	// how long should sessions last
+	minutes, err := strconv.Atoi(s.CookieLifetime)
+	if err != nil {
+		minutes = 60
+	}
+
+	// should cookies persist
+	if strings.ToLower(s.CookiePersist) == "true" {
+		persist = true
+	} else {
+		persist = false
+	}
+
+	// should cookies be secure
+	if strings.ToLower(s.CookieSecure) == "true" {
+		secure = true
+	} else {
+		secure = false
+	}
+
+	// create session
+	session := scs.New()
+	session.Lifetime = time.Duration(minutes) * time.Minute
+	session.Cookie.Persist = persist
+	session.Cookie.Name = s.CookieName
+	session.Cookie.Domain = s.CookieDomain
+	session.Cookie.Secure = secure
+	session.Cookie.SameSite = http.SameSiteLaxMode
+
+	// which session store?
+	switch strings.ToLower(s.SessionType) {
+	case "redis":
+		session.Store = redisstore.New(s.RedisPool)
+	case "mysql", "mariadb":
+		session.Store = mysqlstore.New(s.DBPool)
+	case "postgres":
+		session.Store = postgresstore.New(s.DBPool)
+	default:
+		// TODO: implement cookie session store
+	}
+
+	return session
+
+}

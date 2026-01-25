@@ -1,0 +1,159 @@
+package data
+
+import (
+	"errors"
+	"time"
+
+	"github.com/ansufw/celeritas"
+	up "github.com/upper/db/v4"
+	"golang.org/x/crypto/bcrypt"
+)
+
+type User struct {
+	ID         int       `db:"id,omitempty"`
+	FirstName  string    `db:"first_name"`
+	LastName   string    `db:"last_name"`
+	UserActive int       `db:"user_active"`
+	Email      string    `db:"email"`
+	Password   string    `db:"password"`
+	CreatedAt  time.Time `db:"created_at"`
+	UpdatedAt  time.Time `db:"updated_at"`
+	Token      Token     `db:"-"`
+}
+
+func (u *User) Table() string {
+	return "users"
+}
+
+func (u *User) Validate(v *celeritas.Validator) {
+	v.Check(u.FirstName != "", "first_name", "This field cannot be blank")
+	v.Check(u.LastName != "", "last_name", "This field cannot be blank")
+	v.Check(u.Email != "", "email", "This field cannot be blank")
+	v.IsEmail("email", u.Email)
+}
+
+func (u *User) GetAll() ([]*User, error) {
+	collection := upper.Collection(u.Table())
+
+	var all []*User
+
+	res := collection.Find().OrderBy("last_name asc")
+	err := res.All(&all)
+	if err != nil {
+		return nil, err
+	}
+
+	return all, nil
+}
+
+func (u *User) GetByEmail(email string) (*User, error) {
+
+	var user *User
+
+	collection := upper.Collection(u.Table())
+	res := collection.Find(up.Cond{"email": email})
+	err := res.One(&user)
+	if err != nil {
+		return nil, err
+	}
+
+	var token *Token
+	collection = upper.Collection(token.Table())
+	res = collection.Find(up.Cond{"user_id": user.ID, "expiry": up.Gte(time.Now())}).OrderBy("created_at desc")
+	err = res.One(&token)
+	if err != nil {
+		if err != up.ErrNilRecord && err != up.ErrNoMoreRows {
+			return nil, err
+		}
+	}
+
+	if token != nil {
+		user.Token = *token
+	}
+
+	return user, nil
+}
+
+func (u *User) Get(id int) (*User, error) {
+	var theUser User
+
+	collection := upper.Collection(u.Table())
+	res := collection.Find(up.Cond{"id": id})
+	err := res.One(&theUser)
+	if err != nil {
+		return nil, err
+	}
+
+	return &theUser, nil
+}
+
+func (u *User) Update(theUser User) error {
+	theUser.UpdatedAt = time.Now()
+	collection := upper.Collection(u.Table())
+	return collection.Find(up.Cond{"id": theUser.ID}).Update(&theUser)
+}
+
+func (u *User) Delete(id int) error {
+	collection := upper.Collection(u.Table())
+	return collection.Find(up.Cond{"id": id}).Delete()
+}
+
+func (u *User) Insert(theUser User) (int, error) {
+	bytePassword, err := bcrypt.GenerateFromPassword([]byte(theUser.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return 0, err
+	}
+
+	theUser.Password = string(bytePassword)
+	theUser.CreatedAt = time.Now()
+	theUser.UpdatedAt = time.Now()
+
+	collection := upper.Collection(u.Table())
+	res, err := collection.Insert(&theUser)
+	if err != nil {
+		return 0, err
+	}
+
+	id := getInsertID(res.ID())
+	return id, nil
+}
+
+func (u *User) ResetPassword(id int, newPassword string) error {
+	newHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	theUser, err := u.Get(id)
+	if err != nil {
+		return err
+	}
+
+	theUser.Password = string(newHash)
+	theUser.UpdatedAt = time.Now()
+
+	return u.Update(*theUser)
+}
+
+func (u *User) PasswordMatches(PlainText string) (bool, error) {
+	err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(PlainText))
+	if err != nil {
+		switch {
+		case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):
+			return false, nil
+		default:
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+func (u *User) CheckForRememberToken(id int, token string) bool {
+	var rememberToken RememberToken
+
+	rt := RememberToken{}
+	collection := upper.Collection(rt.TableName())
+	res := collection.Find(up.Cond{"user_id": id, "remember_token": token})
+	err := res.One(&rememberToken)
+	return err == nil
+}

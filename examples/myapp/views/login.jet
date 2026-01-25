@@ -1,0 +1,74 @@
+{{extends "./layouts/base.jet"}}
+
+
+{{block browserTitle()}}
+Login
+{{end}}
+
+{{block css()}}{{end}}
+
+{{block pageContent()}}
+<div class="container">
+
+
+
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <h2 class="mt-5 text-center">Login</h2>
+            
+            {{if .Flash != ""}}
+                <div class="alert alert-info text-center">
+                    {{.Flash}}
+                </div>
+            {{end}}
+
+            <form method="POST" action="/users/login" class="mt-4" id="loginForm" novalidate>
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email address</label>
+                    <input type="email" class="form-control" id="email" name="email" required autocomplete="email">
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="password" name="password" required autocomplete="current-password">
+                </div>
+
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="remember" name="remember" value="remember">
+                    <label class="form-check-label" for="remember">Remember me</label>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button href="javascript:void(0)" class="btn btn-primary" onclick="val()">Login</button>
+                </div>
+
+                <p class="mt-2">
+                    <small><a href="/users/forgot-password">Forgot Password?</a></small>
+                </p>
+
+            </form>
+            <div class="text-center mt-3">
+                <p>Don't have an account? <a href="/register">Register</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{end}}
+
+{{block js()}}
+    <script>
+    function val() {
+        let form = document.getElementById("loginForm");
+        if (form.checkValidity() === false) {
+            this.event.preventDefault();
+            this.event.stopPropagation();
+            form.classList.add("was-validated");
+            return;
+        }
+        form.classList.add("was-validated");
+        form.submit();
+
+    }
+    </script>
+{{end}}

@@ -1,0 +1,10 @@
+.idea
+coverage.out
+dist/
+.DS_Store
+vendor/
+bin/
+tmp/
+*.exe
+*.test
+.env
